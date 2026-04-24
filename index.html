@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Color Link: Usta Modu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="aurora aurora-1"></div>
+    <div class="aurora aurora-2"></div>
+    <main class="app-shell">
+      <header class="hud card glass">
+        <div>
+          <p class="eyebrow">Color Link</p>
+          <h1>Usta Modu</h1>
+        </div>
+        <div class="hud-actions">
+          <button id="reset-level" class="btn btn-secondary">Bölümü Sıfırla</button>
+          <button id="clear-board" class="btn btn-tertiary">Bağlantıları Temizle</button>
+        </div>
+      </header>
+
+      <section class="level-panel card glass" aria-label="Bölüm seçimi">
+        <div class="panel-head">
+          <h2>Bölümler</h2>
+          <p id="completion-info">Kolaydan zora 10 seviye</p>
+        </div>
+        <div id="level-list" class="level-list" role="list"></div>
+      </section>
+
+      <section class="board-card card glass">
+        <div class="board-head">
+          <div>
+            <h2 id="level-title">Bölüm 1</h2>
+            <p id="level-subtitle">Tüm hücreleri doludur ve çizgiler kesişmez.</p>
+          </div>
+          <div class="progress-wrap" aria-live="polite">
+            <span id="fill-label">Doluluk</span>
+            <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+          </div>
+        </div>
+        <div class="board-frame">
+          <canvas id="board" width="640" height="640" aria-label="Color Link oyun tahtası"></canvas>
+        </div>
+      </section>
+
+      <section class="status-bar card glass" aria-live="polite">
+        <p id="status-message">Bir renk noktasından sürükleyerek diğerine bağlan.</p>
+        <button id="next-level" class="btn btn-primary" disabled>Sonraki Bölüm</button>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,552 @@
+const STORAGE_KEY = 'color-link-progress-v1';
+
+const LEVELS = [
+  {
+    id: 1,
+    size: 5,
+    difficulty: 'Isınma',
+    pairs: {
+      A: { color: '#ff6b6b', start: [0, 0], end: [4, 0] },
+      B: { color: '#ffd166', start: [0, 2], end: [4, 2] },
+      C: { color: '#4ecdc4', start: [0, 4], end: [4, 4] }
+    }
+  },
+  {
+    id: 2,
+    size: 5,
+    difficulty: 'Kolay',
+    pairs: {
+      A: { color: '#ff7f50', start: [0, 0], end: [0, 4] },
+      B: { color: '#6ee7ff', start: [2, 0], end: [2, 4] },
+      C: { color: '#c084fc', start: [4, 0], end: [4, 4] }
+    }
+  },
+  {
+    id: 3,
+    size: 6,
+    difficulty: 'Kolay+',
+    pairs: {
+      A: { color: '#ff6b6b', start: [0, 0], end: [5, 0] },
+      B: { color: '#ffd166', start: [0, 2], end: [5, 2] },
+      C: { color: '#4ecdc4', start: [0, 4], end: [5, 4] }
+    }
+  },
+  {
+    id: 4,
+    size: 6,
+    difficulty: 'Orta',
+    pairs: {
+      A: { color: '#ff7f50', start: [0, 0], end: [0, 5] },
+      B: { color: '#6ee7ff', start: [2, 0], end: [2, 5] },
+      C: { color: '#c084fc', start: [4, 0], end: [4, 5] }
+    }
+  },
+  {
+    id: 5,
+    size: 7,
+    difficulty: 'Orta+',
+    pairs: {
+      A: { color: '#ff6b6b', start: [0, 0], end: [6, 0] },
+      B: { color: '#ffd166', start: [0, 2], end: [6, 2] },
+      C: { color: '#4ecdc4', start: [0, 4], end: [6, 4] },
+      D: { color: '#5f9dff', start: [0, 6], end: [6, 6] }
+    }
+  },
+  {
+    id: 6,
+    size: 7,
+    difficulty: 'Zor',
+    pairs: {
+      A: { color: '#ff7f50', start: [0, 0], end: [0, 6] },
+      B: { color: '#6ee7ff', start: [2, 0], end: [2, 6] },
+      C: { color: '#c084fc', start: [4, 0], end: [4, 6] },
+      D: { color: '#63ff96', start: [6, 0], end: [6, 6] }
+    }
+  },
+  {
+    id: 7,
+    size: 8,
+    difficulty: 'Zor+',
+    pairs: {
+      A: { color: '#ff6b6b', start: [0, 0], end: [7, 0] },
+      B: { color: '#ffd166', start: [0, 2], end: [7, 2] },
+      C: { color: '#4ecdc4', start: [0, 4], end: [7, 4] },
+      D: { color: '#5f9dff', start: [0, 6], end: [7, 6] }
+    }
+  },
+  {
+    id: 8,
+    size: 8,
+    difficulty: 'Uzman',
+    pairs: {
+      A: { color: '#ff7f50', start: [0, 0], end: [0, 7] },
+      B: { color: '#6ee7ff', start: [2, 0], end: [2, 7] },
+      C: { color: '#c084fc', start: [4, 0], end: [4, 7] },
+      D: { color: '#63ff96', start: [6, 0], end: [6, 7] }
+    }
+  },
+  {
+    id: 9,
+    size: 9,
+    difficulty: 'Usta',
+    pairs: {
+      A: { color: '#ff6b6b', start: [0, 0], end: [8, 0] },
+      B: { color: '#ffd166', start: [0, 2], end: [8, 2] },
+      C: { color: '#4ecdc4', start: [0, 4], end: [8, 4] },
+      D: { color: '#5f9dff', start: [0, 6], end: [8, 6] },
+      E: { color: '#c084fc', start: [0, 8], end: [8, 8] }
+    }
+  },
+  {
+    id: 10,
+    size: 9,
+    difficulty: 'Efsane',
+    pairs: {
+      A: { color: '#ff7f50', start: [0, 0], end: [0, 8] },
+      B: { color: '#6ee7ff', start: [2, 0], end: [2, 8] },
+      C: { color: '#c084fc', start: [4, 0], end: [4, 8] },
+      D: { color: '#63ff96', start: [6, 0], end: [6, 8] },
+      E: { color: '#ffd166', start: [8, 0], end: [8, 8] }
+    }
+  }
+];
+
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const levelList = document.getElementById('level-list');
+const levelTitle = document.getElementById('level-title');
+const levelSubtitle = document.getElementById('level-subtitle');
+const statusMessage = document.getElementById('status-message');
+const completionInfo = document.getElementById('completion-info');
+const resetLevelBtn = document.getElementById('reset-level');
+const clearBoardBtn = document.getElementById('clear-board');
+const nextLevelBtn = document.getElementById('next-level');
+const progressFill = document.getElementById('progress-fill');
+const progressTrack = document.querySelector('.progress-track');
+const toast = document.getElementById('toast');
+
+const state = {
+  unlockedLevel: 1,
+  completedLevelIds: new Set(),
+  currentLevelIndex: 0,
+  paths: {},
+  occupied: new Map(),
+  activeColorKey: null,
+  activePath: [],
+  isSolved: false,
+  toastTimer: null,
+  pulse: 0
+};
+
+const getCurrentLevel = () => LEVELS[state.currentLevelIndex];
+
+const gridPadding = 18;
+let cellSize = 0;
+let boardOffset = 0;
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    state.unlockedLevel = Math.max(1, Math.min(LEVELS.length, parsed.unlockedLevel ?? 1));
+    state.completedLevelIds = new Set(parsed.completedLevelIds ?? []);
+  } catch {
+    state.unlockedLevel = 1;
+    state.completedLevelIds = new Set();
+  }
+}
+
+function saveProgress() {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      unlockedLevel: state.unlockedLevel,
+      completedLevelIds: [...state.completedLevelIds]
+    })
+  );
+}
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+function cellKey([x, y]) {
+  return `${x},${y}`;
+}
+
+function equalCell(a, b) {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
+function clearPath(colorKey) {
+  const existing = state.paths[colorKey] || [];
+  for (const point of existing) {
+    const key = cellKey(point);
+    if (state.occupied.get(key) === colorKey && !isAnchorOfColor(colorKey, point)) {
+      state.occupied.delete(key);
+    }
+  }
+  state.paths[colorKey] = [];
+}
+
+function isAnchorOfColor(colorKey, cell) {
+  const pair = getCurrentLevel().pairs[colorKey];
+  return equalCell(pair.start, cell) || equalCell(pair.end, cell);
+}
+
+function initializeLevel(levelIndex) {
+  state.currentLevelIndex = levelIndex;
+  state.activeColorKey = null;
+  state.activePath = [];
+  state.isSolved = false;
+  state.paths = {};
+  state.occupied = new Map();
+
+  const level = getCurrentLevel();
+  for (const [key, pair] of Object.entries(level.pairs)) {
+    state.paths[key] = [];
+    state.occupied.set(cellKey(pair.start), key);
+    state.occupied.set(cellKey(pair.end), key);
+  }
+
+  levelTitle.textContent = `Bölüm ${level.id}`;
+  levelSubtitle.textContent = `${level.size}x${level.size} • ${level.difficulty}`;
+  statusMessage.textContent = 'Bir renk noktasından sürükleyerek diğerine bağlan.';
+  nextLevelBtn.disabled = true;
+  updateProgressUI();
+  renderLevelButtons();
+  computeBoardMetrics();
+  draw();
+}
+
+function renderLevelButtons() {
+  levelList.innerHTML = '';
+  LEVELS.forEach((level, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn';
+    const isUnlocked = level.id <= state.unlockedLevel;
+    const isCompleted = state.completedLevelIds.has(level.id);
+    if (idx === state.currentLevelIndex) btn.classList.add('active');
+    if (!isUnlocked) btn.classList.add('locked');
+    btn.disabled = !isUnlocked;
+    btn.textContent = isCompleted ? `${level.id} ✓` : `${level.id}`;
+    btn.addEventListener('click', () => initializeLevel(idx));
+    levelList.appendChild(btn);
+  });
+
+  completionInfo.textContent = `${state.completedLevelIds.size}/${LEVELS.length} bölüm tamamlandı`;
+}
+
+function computeBoardMetrics() {
+  const size = Math.min(canvas.clientWidth, 680);
+  canvas.width = size;
+  canvas.height = size;
+
+  const level = getCurrentLevel();
+  boardOffset = gridPadding;
+  cellSize = (size - gridPadding * 2) / level.size;
+}
+
+function toCell(pos) {
+  const level = getCurrentLevel();
+  const x = Math.floor((pos.x - boardOffset) / cellSize);
+  const y = Math.floor((pos.y - boardOffset) / cellSize);
+  if (x < 0 || y < 0 || x >= level.size || y >= level.size) return null;
+  return [x, y];
+}
+
+function fromEvent(event) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+}
+
+function adjacent(a, b) {
+  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+}
+
+function getAnchorColor(cell) {
+  const level = getCurrentLevel();
+  for (const [colorKey, pair] of Object.entries(level.pairs)) {
+    if (equalCell(pair.start, cell) || equalCell(pair.end, cell)) return colorKey;
+  }
+  return null;
+}
+
+function beginPath(cell) {
+  const colorKey = getAnchorColor(cell);
+  if (!colorKey) return;
+
+  clearPath(colorKey);
+  state.activeColorKey = colorKey;
+  state.activePath = [cell];
+  draw();
+}
+
+function extendPath(cell) {
+  const colorKey = state.activeColorKey;
+  if (!colorKey || !cell) return;
+
+  const path = state.activePath;
+  const last = path[path.length - 1];
+  if (equalCell(last, cell)) return;
+  if (!adjacent(last, cell)) return;
+
+  if (path.length > 1 && equalCell(path[path.length - 2], cell)) {
+    const removed = path.pop();
+    if (!isAnchorOfColor(colorKey, removed)) {
+      state.occupied.delete(cellKey(removed));
+    }
+    draw();
+    return;
+  }
+
+  const owner = state.occupied.get(cellKey(cell));
+  if (owner && owner !== colorKey) return;
+
+  if (owner === colorKey && !isAnchorOfColor(colorKey, cell)) {
+    const index = path.findIndex((point) => equalCell(point, cell));
+    if (index !== -1) {
+      const tail = path.splice(index + 1);
+      tail.forEach((point) => {
+        if (!isAnchorOfColor(colorKey, point)) state.occupied.delete(cellKey(point));
+      });
+      draw();
+      return;
+    }
+  }
+
+  path.push(cell);
+  if (!isAnchorOfColor(colorKey, cell)) {
+    state.occupied.set(cellKey(cell), colorKey);
+  }
+
+  draw();
+}
+
+function endPath() {
+  const colorKey = state.activeColorKey;
+  if (!colorKey) return;
+
+  state.paths[colorKey] = [...state.activePath];
+  state.activeColorKey = null;
+  state.activePath = [];
+  checkSolved();
+  draw();
+}
+
+function isPairConnected(colorKey) {
+  const pair = getCurrentLevel().pairs[colorKey];
+  const path = state.paths[colorKey];
+  if (!path.length) return false;
+  const head = path[0];
+  const tail = path[path.length - 1];
+
+  return (
+    (equalCell(head, pair.start) && equalCell(tail, pair.end)) ||
+    (equalCell(head, pair.end) && equalCell(tail, pair.start))
+  );
+}
+
+function allCellsFilled() {
+  const level = getCurrentLevel();
+  return state.occupied.size === level.size * level.size;
+}
+
+function checkSolved() {
+  const level = getCurrentLevel();
+  const everyPairConnected = Object.keys(level.pairs).every((key) => isPairConnected(key));
+
+  if (everyPairConnected && allCellsFilled()) {
+    state.isSolved = true;
+    statusMessage.textContent = 'Harika! Bölüm temiz şekilde çözüldü.';
+    state.completedLevelIds.add(level.id);
+    const unlockedBefore = state.unlockedLevel;
+    if (level.id < LEVELS.length) {
+      state.unlockedLevel = Math.max(state.unlockedLevel, level.id + 1);
+    }
+
+    saveProgress();
+    updateProgressUI();
+    renderLevelButtons();
+
+    if (state.unlockedLevel > unlockedBefore) {
+      showToast(`Bölüm ${level.id + 1} açıldı!`);
+    } else {
+      showToast('Bölüm tekrar tamamlandı!');
+    }
+
+    nextLevelBtn.disabled = level.id >= LEVELS.length;
+  } else {
+    state.isSolved = false;
+    nextLevelBtn.disabled = true;
+    statusMessage.textContent = 'Akışları tamamla, tüm hücreleri doldur.';
+  }
+}
+
+function updateProgressUI() {
+  const level = getCurrentLevel();
+  const fill = Math.round((state.occupied.size / (level.size * level.size)) * 100);
+  progressFill.style.width = `${fill}%`;
+  progressTrack.setAttribute('aria-valuenow', String(fill));
+}
+
+function drawGrid(level) {
+  ctx.strokeStyle = 'rgba(156, 181, 255, 0.2)';
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= level.size; i += 1) {
+    const pos = boardOffset + i * cellSize;
+    ctx.beginPath();
+    ctx.moveTo(boardOffset, pos);
+    ctx.lineTo(boardOffset + level.size * cellSize, pos);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(pos, boardOffset);
+    ctx.lineTo(pos, boardOffset + level.size * cellSize);
+    ctx.stroke();
+  }
+}
+
+function drawPath(path, color, active = false) {
+  if (path.length < 2) return;
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = cellSize * 0.45;
+  ctx.shadowBlur = active ? 22 : 14;
+  ctx.shadowColor = color;
+
+  ctx.beginPath();
+  path.forEach(([x, y], idx) => {
+    const px = boardOffset + x * cellSize + cellSize / 2;
+    const py = boardOffset + y * cellSize + cellSize / 2;
+    if (idx === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function drawAnchors(level) {
+  state.pulse += 0.05;
+  const pulse = (Math.sin(state.pulse) + 1) * 0.5;
+
+  for (const pair of Object.values(level.pairs)) {
+    [pair.start, pair.end].forEach(([x, y]) => {
+      const cx = boardOffset + x * cellSize + cellSize / 2;
+      const cy = boardOffset + y * cellSize + cellSize / 2;
+
+      ctx.fillStyle = pair.color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cellSize * (0.23 + pulse * 0.025), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cellSize * 0.14, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+  }
+}
+
+function draw() {
+  const level = getCurrentLevel();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = 'rgba(11, 16, 35, 0.92)';
+  ctx.fillRect(boardOffset, boardOffset, level.size * cellSize, level.size * cellSize);
+
+  drawGrid(level);
+
+  for (const [key, path] of Object.entries(state.paths)) {
+    drawPath(path, level.pairs[key].color, false);
+  }
+
+  if (state.activeColorKey) {
+    drawPath(state.activePath, level.pairs[state.activeColorKey].color, true);
+  }
+
+  drawAnchors(level);
+  updateProgressUI();
+}
+
+function handlePointerDown(event) {
+  const cell = toCell(fromEvent(event));
+  if (!cell) return;
+  beginPath(cell);
+}
+
+function handlePointerMove(event) {
+  if (!state.activeColorKey) return;
+  const cell = toCell(fromEvent(event));
+  extendPath(cell);
+}
+
+function handlePointerUp() {
+  endPath();
+}
+
+function clearBoard() {
+  const level = getCurrentLevel();
+  state.paths = {};
+  state.occupied = new Map();
+  for (const [key, pair] of Object.entries(level.pairs)) {
+    state.paths[key] = [];
+    state.occupied.set(cellKey(pair.start), key);
+    state.occupied.set(cellKey(pair.end), key);
+  }
+  state.activeColorKey = null;
+  state.activePath = [];
+  state.isSolved = false;
+  statusMessage.textContent = 'Tahta temizlendi. Yeni akışları kur.';
+  nextLevelBtn.disabled = true;
+  draw();
+}
+
+function bindEvents() {
+  canvas.addEventListener('pointerdown', handlePointerDown);
+  canvas.addEventListener('pointermove', handlePointerMove);
+  canvas.addEventListener('pointerup', handlePointerUp);
+  canvas.addEventListener('pointerleave', handlePointerUp);
+  canvas.addEventListener('pointercancel', handlePointerUp);
+
+  resetLevelBtn.addEventListener('click', () => initializeLevel(state.currentLevelIndex));
+  clearBoardBtn.addEventListener('click', clearBoard);
+
+  nextLevelBtn.addEventListener('click', () => {
+    const nextIndex = state.currentLevelIndex + 1;
+    if (nextIndex < LEVELS.length && LEVELS[nextIndex].id <= state.unlockedLevel) {
+      initializeLevel(nextIndex);
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    computeBoardMetrics();
+    draw();
+  });
+}
+
+function animate() {
+  draw();
+  requestAnimationFrame(animate);
+}
+
+function init() {
+  loadProgress();
+  renderLevelButtons();
+  bindEvents();
+  initializeLevel(0);
+  animate();
+}
+
+init();
