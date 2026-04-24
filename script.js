@@ -317,26 +317,25 @@ function beginPath(cell) {
   draw();
 }
 
-function extendPath(cell) {
+function extendPathStep(cell) {
   const colorKey = state.activeColorKey;
   if (!colorKey || !cell) return;
 
   const path = state.activePath;
   const last = path[path.length - 1];
-  if (equalCell(last, cell)) return;
-  if (!adjacent(last, cell)) return;
+  if (equalCell(last, cell)) return true;
+  if (!adjacent(last, cell)) return false;
 
   if (path.length > 1 && equalCell(path[path.length - 2], cell)) {
     const removed = path.pop();
     if (!isAnchorOfColor(colorKey, removed)) {
       state.occupied.delete(cellKey(removed));
     }
-    draw();
-    return;
+    return true;
   }
 
   const owner = state.occupied.get(cellKey(cell));
-  if (owner && owner !== colorKey) return;
+  if (owner && owner !== colorKey) return false;
 
   if (owner === colorKey && !isAnchorOfColor(colorKey, cell)) {
     const index = path.findIndex((point) => equalCell(point, cell));
@@ -345,14 +344,52 @@ function extendPath(cell) {
       tail.forEach((point) => {
         if (!isAnchorOfColor(colorKey, point)) state.occupied.delete(cellKey(point));
       });
-      draw();
-      return;
+      return true;
     }
   }
 
   path.push(cell);
   if (!isAnchorOfColor(colorKey, cell)) {
     state.occupied.set(cellKey(cell), colorKey);
+  }
+  return true;
+}
+
+function getTraceCells(from, to) {
+  const cells = [];
+  let [x, y] = from;
+  const [targetX, targetY] = to;
+
+  while (x !== targetX || y !== targetY) {
+    const dx = targetX - x;
+    const dy = targetY - y;
+
+    if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) {
+      x += Math.sign(dx);
+    } else if (dy !== 0) {
+      y += Math.sign(dy);
+    } else if (dx !== 0) {
+      x += Math.sign(dx);
+    }
+
+    cells.push([x, y]);
+  }
+
+  return cells;
+}
+
+function extendPath(cell) {
+  const colorKey = state.activeColorKey;
+  if (!colorKey || !cell) return;
+
+  const path = state.activePath;
+  if (!path.length) return;
+  const last = path[path.length - 1];
+
+  const traceCells = getTraceCells(last, cell);
+  for (const nextCell of traceCells) {
+    const moved = extendPathStep(nextCell);
+    if (!moved) break;
   }
 
   draw();
