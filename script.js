@@ -279,13 +279,41 @@ function getAnchorColor(cell) {
   return null;
 }
 
+function getPathColorAtCell(cell) {
+  for (const [colorKey, path] of Object.entries(state.paths)) {
+    if (path.some((point) => equalCell(point, cell))) return colorKey;
+  }
+  return null;
+}
+
 function beginPath(cell) {
-  const colorKey = getAnchorColor(cell);
+  let colorKey = getAnchorColor(cell);
+  if (!colorKey) {
+    colorKey = getPathColorAtCell(cell);
+  }
   if (!colorKey) return;
 
-  clearPath(colorKey);
+  const existingPath = state.paths[colorKey] || [];
+  const editPointIndex = existingPath.findIndex((point) => equalCell(point, cell));
+
+  if (editPointIndex !== -1) {
+    const keptPath = existingPath.slice(0, editPointIndex + 1);
+    const removedPath = existingPath.slice(editPointIndex + 1);
+
+    removedPath.forEach((point) => {
+      if (!isAnchorOfColor(colorKey, point)) {
+        state.occupied.delete(cellKey(point));
+      }
+    });
+
+    state.paths[colorKey] = keptPath;
+    state.activePath = [...keptPath];
+  } else {
+    clearPath(colorKey);
+    state.activePath = [cell];
+  }
+
   state.activeColorKey = colorKey;
-  state.activePath = [cell];
   draw();
 }
 
@@ -481,6 +509,8 @@ function draw() {
 }
 
 function handlePointerDown(event) {
+  event.preventDefault();
+  canvas.setPointerCapture(event.pointerId);
   const cell = toCell(fromEvent(event));
   if (!cell) return;
   beginPath(cell);
@@ -492,7 +522,10 @@ function handlePointerMove(event) {
   extendPath(cell);
 }
 
-function handlePointerUp() {
+function handlePointerCancel(event) {
+  if (canvas.hasPointerCapture(event.pointerId)) {
+    canvas.releasePointerCapture(event.pointerId);
+  }
   endPath();
 }
 
@@ -516,9 +549,8 @@ function clearBoard() {
 function bindEvents() {
   canvas.addEventListener('pointerdown', handlePointerDown);
   canvas.addEventListener('pointermove', handlePointerMove);
-  canvas.addEventListener('pointerup', handlePointerUp);
-  canvas.addEventListener('pointerleave', handlePointerUp);
-  canvas.addEventListener('pointercancel', handlePointerUp);
+  canvas.addEventListener('pointerup', handlePointerCancel);
+  canvas.addEventListener('pointercancel', handlePointerCancel);
 
   resetLevelBtn.addEventListener('click', () => initializeLevel(state.currentLevelIndex));
   clearBoardBtn.addEventListener('click', clearBoard);
