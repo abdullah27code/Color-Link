@@ -1,114 +1,40 @@
 const STORAGE_KEY = 'color-link-progress-v1';
 
-const LEVELS = [
-  {
-    id: 1,
-    size: 5,
-    difficulty: 'Isınma',
-    pairs: {
-      A: { color: '#ff6b6b', start: [0, 0], end: [4, 0] },
-      B: { color: '#ffd166', start: [0, 2], end: [4, 2] },
-      C: { color: '#4ecdc4', start: [0, 4], end: [4, 4] }
+const PALETTE = ['#ff6b6b', '#ffd166', '#4ecdc4', '#5f9dff', '#c084fc', '#63ff96', '#ff7f50', '#6ee7ff', '#f472b6'];
+
+function colorKeyFor(index) {
+  return String.fromCharCode(65 + index);
+}
+
+function makeLevel({ id, size, difficulty, mode }) {
+  const pairs = {};
+
+  if (mode === 'rows') {
+    for (let y = 0; y < size; y += 1) {
+      const key = colorKeyFor(y);
+      pairs[key] = { color: PALETTE[y % PALETTE.length], start: [0, y], end: [size - 1, y] };
     }
-  },
-  {
-    id: 2,
-    size: 5,
-    difficulty: 'Kolay',
-    pairs: {
-      A: { color: '#ff7f50', start: [0, 0], end: [0, 4] },
-      B: { color: '#6ee7ff', start: [2, 0], end: [2, 4] },
-      C: { color: '#c084fc', start: [4, 0], end: [4, 4] }
-    }
-  },
-  {
-    id: 3,
-    size: 6,
-    difficulty: 'Kolay+',
-    pairs: {
-      A: { color: '#ff6b6b', start: [0, 0], end: [5, 0] },
-      B: { color: '#ffd166', start: [0, 2], end: [5, 2] },
-      C: { color: '#4ecdc4', start: [0, 4], end: [5, 4] }
-    }
-  },
-  {
-    id: 4,
-    size: 6,
-    difficulty: 'Orta',
-    pairs: {
-      A: { color: '#ff7f50', start: [0, 0], end: [0, 5] },
-      B: { color: '#6ee7ff', start: [2, 0], end: [2, 5] },
-      C: { color: '#c084fc', start: [4, 0], end: [4, 5] }
-    }
-  },
-  {
-    id: 5,
-    size: 7,
-    difficulty: 'Orta+',
-    pairs: {
-      A: { color: '#ff6b6b', start: [0, 0], end: [6, 0] },
-      B: { color: '#ffd166', start: [0, 2], end: [6, 2] },
-      C: { color: '#4ecdc4', start: [0, 4], end: [6, 4] },
-      D: { color: '#5f9dff', start: [0, 6], end: [6, 6] }
-    }
-  },
-  {
-    id: 6,
-    size: 7,
-    difficulty: 'Zor',
-    pairs: {
-      A: { color: '#ff7f50', start: [0, 0], end: [0, 6] },
-      B: { color: '#6ee7ff', start: [2, 0], end: [2, 6] },
-      C: { color: '#c084fc', start: [4, 0], end: [4, 6] },
-      D: { color: '#63ff96', start: [6, 0], end: [6, 6] }
-    }
-  },
-  {
-    id: 7,
-    size: 8,
-    difficulty: 'Zor+',
-    pairs: {
-      A: { color: '#ff6b6b', start: [0, 0], end: [7, 0] },
-      B: { color: '#ffd166', start: [0, 2], end: [7, 2] },
-      C: { color: '#4ecdc4', start: [0, 4], end: [7, 4] },
-      D: { color: '#5f9dff', start: [0, 6], end: [7, 6] }
-    }
-  },
-  {
-    id: 8,
-    size: 8,
-    difficulty: 'Uzman',
-    pairs: {
-      A: { color: '#ff7f50', start: [0, 0], end: [0, 7] },
-      B: { color: '#6ee7ff', start: [2, 0], end: [2, 7] },
-      C: { color: '#c084fc', start: [4, 0], end: [4, 7] },
-      D: { color: '#63ff96', start: [6, 0], end: [6, 7] }
-    }
-  },
-  {
-    id: 9,
-    size: 9,
-    difficulty: 'Usta',
-    pairs: {
-      A: { color: '#ff6b6b', start: [0, 0], end: [8, 0] },
-      B: { color: '#ffd166', start: [0, 2], end: [8, 2] },
-      C: { color: '#4ecdc4', start: [0, 4], end: [8, 4] },
-      D: { color: '#5f9dff', start: [0, 6], end: [8, 6] },
-      E: { color: '#c084fc', start: [0, 8], end: [8, 8] }
-    }
-  },
-  {
-    id: 10,
-    size: 9,
-    difficulty: 'Efsane',
-    pairs: {
-      A: { color: '#ff7f50', start: [0, 0], end: [0, 8] },
-      B: { color: '#6ee7ff', start: [2, 0], end: [2, 8] },
-      C: { color: '#c084fc', start: [4, 0], end: [4, 8] },
-      D: { color: '#63ff96', start: [6, 0], end: [6, 8] },
-      E: { color: '#ffd166', start: [8, 0], end: [8, 8] }
+  } else {
+    for (let x = 0; x < size; x += 1) {
+      const key = colorKeyFor(x);
+      pairs[key] = { color: PALETTE[x % PALETTE.length], start: [x, 0], end: [x, size - 1] };
     }
   }
+
+  return { id, size, difficulty, pairs };
+}
+
+const LEVELS = [
+  makeLevel({ id: 1, size: 5, difficulty: 'Isınma', mode: 'rows' }),
+  makeLevel({ id: 2, size: 5, difficulty: 'Kolay', mode: 'cols' }),
+  makeLevel({ id: 3, size: 6, difficulty: 'Kolay+', mode: 'rows' }),
+  makeLevel({ id: 4, size: 6, difficulty: 'Orta', mode: 'cols' }),
+  makeLevel({ id: 5, size: 7, difficulty: 'Orta+', mode: 'rows' }),
+  makeLevel({ id: 6, size: 7, difficulty: 'Zor', mode: 'cols' }),
+  makeLevel({ id: 7, size: 8, difficulty: 'Zor+', mode: 'rows' }),
+  makeLevel({ id: 8, size: 8, difficulty: 'Uzman', mode: 'cols' }),
+  makeLevel({ id: 9, size: 9, difficulty: 'Usta', mode: 'rows' }),
+  makeLevel({ id: 10, size: 9, difficulty: 'Efsane', mode: 'cols' })
 ];
 
 const canvas = document.getElementById('board');
@@ -260,14 +186,17 @@ function applyHint() {
   }
 
   const { colorKey: unresolvedColor, pair, solutionPath, currentPath } = target;
+  const totalCells = level.size * level.size;
+  const emptyCellsBeforeHint = totalCells - state.occupied.size;
+  const strategicStep = Math.max(1, Math.min(3, Math.ceil((emptyCellsBeforeHint / totalCells) * 3)));
 
   let nextPath;
   let hintCell = null;
   if (!currentPath.length || !isPrefixPath(currentPath, solutionPath)) {
-    nextPath = solutionPath.slice(0, Math.min(2, solutionPath.length));
+    nextPath = solutionPath.slice(0, Math.min(1 + strategicStep, solutionPath.length));
     hintCell = nextPath[nextPath.length - 1];
   } else if (currentPath.length < solutionPath.length) {
-    nextPath = solutionPath.slice(0, currentPath.length + 1);
+    nextPath = solutionPath.slice(0, Math.min(currentPath.length + strategicStep, solutionPath.length));
     hintCell = nextPath[nextPath.length - 1];
   } else {
     showToast('Bu renk zaten tamamlandı.');
@@ -308,8 +237,7 @@ function applyHint() {
   else if (dy === 1) direction = 'aşağı ilerle';
   else if (dy === -1) direction = 'yukarı ilerle';
 
-  statusMessage.textContent = `${unresolvedColor} rengi için ipucu: bir adım ${direction}.`;
-  const totalCells = level.size * level.size;
+  statusMessage.textContent = `${unresolvedColor} rengi için ipucu: ${direction}.`;
   const emptyCells = totalCells - state.occupied.size;
   showToast(`İpucu: ${unresolvedColor} için ${direction} • Kalan boşluk: ${emptyCells}`);
 }
