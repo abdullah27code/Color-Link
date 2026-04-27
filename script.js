@@ -6,35 +6,67 @@ function colorKeyFor(index) {
   return String.fromCharCode(65 + index);
 }
 
-function makeLevel({ id, size, difficulty, mode }) {
-  const pairs = {};
+function buildSnakeCells(size, vertical = false) {
+  const cells = [];
 
-  if (mode === 'rows') {
+  if (!vertical) {
     for (let y = 0; y < size; y += 1) {
-      const key = colorKeyFor(y);
-      pairs[key] = { color: PALETTE[y % PALETTE.length], start: [0, y], end: [size - 1, y] };
+      const row = [];
+      for (let x = 0; x < size; x += 1) row.push([x, y]);
+      if (y % 2 === 1) row.reverse();
+      cells.push(...row);
     }
   } else {
     for (let x = 0; x < size; x += 1) {
-      const key = colorKeyFor(x);
-      pairs[key] = { color: PALETTE[x % PALETTE.length], start: [x, 0], end: [x, size - 1] };
+      const col = [];
+      for (let y = 0; y < size; y += 1) col.push([x, y]);
+      if (x % 2 === 1) col.reverse();
+      cells.push(...col);
     }
+  }
+
+  return cells;
+}
+
+function makeAdvancedLevel({ id, size, difficulty, segments, vertical = false }) {
+  const pairs = {};
+  const snakePath = buildSnakeCells(size, vertical);
+  let cursor = 0;
+
+  segments.forEach((len, index) => {
+    const key = colorKeyFor(index);
+    const segment = snakePath.slice(cursor, cursor + len);
+    cursor += len;
+
+    pairs[key] = {
+      color: PALETTE[index % PALETTE.length],
+      start: segment[0],
+      end: segment[segment.length - 1],
+      solutionPath: segment
+    };
+  });
+
+  if (cursor < snakePath.length) {
+    const lastKey = colorKeyFor(segments.length - 1);
+    const extension = snakePath.slice(cursor);
+    pairs[lastKey].solutionPath.push(...extension);
+    pairs[lastKey].end = extension[extension.length - 1];
   }
 
   return { id, size, difficulty, pairs };
 }
 
 const LEVELS = [
-  makeLevel({ id: 1, size: 5, difficulty: 'Isınma', mode: 'rows' }),
-  makeLevel({ id: 2, size: 5, difficulty: 'Kolay', mode: 'cols' }),
-  makeLevel({ id: 3, size: 6, difficulty: 'Kolay+', mode: 'rows' }),
-  makeLevel({ id: 4, size: 6, difficulty: 'Orta', mode: 'cols' }),
-  makeLevel({ id: 5, size: 7, difficulty: 'Orta+', mode: 'rows' }),
-  makeLevel({ id: 6, size: 7, difficulty: 'Zor', mode: 'cols' }),
-  makeLevel({ id: 7, size: 8, difficulty: 'Zor+', mode: 'rows' }),
-  makeLevel({ id: 8, size: 8, difficulty: 'Uzman', mode: 'cols' }),
-  makeLevel({ id: 9, size: 9, difficulty: 'Usta', mode: 'rows' }),
-  makeLevel({ id: 10, size: 9, difficulty: 'Efsane', mode: 'cols' })
+  makeAdvancedLevel({ id: 1, size: 5, difficulty: 'Isınma', segments: [5, 5, 5, 5, 5] }),
+  makeAdvancedLevel({ id: 2, size: 5, difficulty: 'Kolay', segments: [6, 5, 5, 4, 5], vertical: true }),
+  makeAdvancedLevel({ id: 3, size: 6, difficulty: 'Kolay+', segments: [6, 6, 6, 6, 6, 6] }),
+  makeAdvancedLevel({ id: 4, size: 6, difficulty: 'Orta', segments: [8, 7, 7, 7, 7], vertical: true }),
+  makeAdvancedLevel({ id: 5, size: 7, difficulty: 'Orta+', segments: [7, 7, 7, 7, 7, 7, 7] }),
+  makeAdvancedLevel({ id: 6, size: 7, difficulty: 'Zor', segments: [10, 10, 10, 9, 10], vertical: true }),
+  makeAdvancedLevel({ id: 7, size: 8, difficulty: 'Zor+', segments: [8, 8, 8, 8, 8, 8, 8, 8] }),
+  makeAdvancedLevel({ id: 8, size: 8, difficulty: 'Uzman', segments: [13, 13, 12, 13, 13], vertical: true }),
+  makeAdvancedLevel({ id: 9, size: 9, difficulty: 'Usta', segments: [9, 9, 9, 9, 9, 9, 9, 9, 9] }),
+  makeAdvancedLevel({ id: 10, size: 9, difficulty: 'Efsane', segments: [21, 20, 20, 20], vertical: true })
 ];
 
 const canvas = document.getElementById('board');
@@ -153,7 +185,7 @@ function pickHintTargetByFill(level) {
   for (const [colorKey, pair] of Object.entries(level.pairs)) {
     if (isPairConnected(colorKey)) continue;
 
-    const solutionPath = buildDirectPath(pair.start, pair.end);
+    const solutionPath = pair.solutionPath ? [...pair.solutionPath] : buildDirectPath(pair.start, pair.end);
     const currentPath = normalizePathDirection(state.paths[colorKey] || [], pair.start, pair.end);
     const validPrefixLen = isPrefixPath(currentPath, solutionPath) ? currentPath.length : 0;
     const remainingCells = solutionPath.length - validPrefixLen;
