@@ -221,6 +221,31 @@ function isPrefixPath(path, fullPath) {
   return path.every((cell, idx) => equalCell(cell, fullPath[idx]));
 }
 
+function pickHintTargetByFill(level) {
+  let bestTarget = null;
+
+  for (const [colorKey, pair] of Object.entries(level.pairs)) {
+    if (isPairConnected(colorKey)) continue;
+
+    const solutionPath = buildDirectPath(pair.start, pair.end);
+    const currentPath = normalizePathDirection(state.paths[colorKey] || [], pair.start, pair.end);
+    const validPrefixLen = isPrefixPath(currentPath, solutionPath) ? currentPath.length : 0;
+    const remainingCells = solutionPath.length - validPrefixLen;
+
+    if (!bestTarget || remainingCells > bestTarget.remainingCells) {
+      bestTarget = {
+        colorKey,
+        pair,
+        solutionPath,
+        currentPath,
+        remainingCells
+      };
+    }
+  }
+
+  return bestTarget;
+}
+
 function applyHint() {
   if (state.isSolved) {
     showToast('Bu bölüm zaten tamamlandı.');
@@ -228,15 +253,13 @@ function applyHint() {
   }
 
   const level = getCurrentLevel();
-  const unresolvedColor = Object.keys(level.pairs).find((colorKey) => !isPairConnected(colorKey));
-  if (!unresolvedColor) {
+  const target = pickHintTargetByFill(level);
+  if (!target) {
     showToast('İpucu gerekmiyor, sadece boş hücreleri doldur.');
     return;
   }
 
-  const pair = level.pairs[unresolvedColor];
-  const solutionPath = buildDirectPath(pair.start, pair.end);
-  const currentPath = normalizePathDirection(state.paths[unresolvedColor] || [], pair.start, pair.end);
+  const { colorKey: unresolvedColor, pair, solutionPath, currentPath } = target;
 
   let nextPath;
   let hintCell = null;
@@ -286,7 +309,9 @@ function applyHint() {
   else if (dy === -1) direction = 'yukarı ilerle';
 
   statusMessage.textContent = `${unresolvedColor} rengi için ipucu: bir adım ${direction}.`;
-  showToast(`İpucu: ${unresolvedColor} için ${direction}`);
+  const totalCells = level.size * level.size;
+  const emptyCells = totalCells - state.occupied.size;
+  showToast(`İpucu: ${unresolvedColor} için ${direction} • Kalan boşluk: ${emptyCells}`);
 }
 
 function isAnchorOfColor(colorKey, cell) {
