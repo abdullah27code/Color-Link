@@ -118,7 +118,7 @@ const timerValue = document.getElementById('timer-value');
 const scoreValue = document.getElementById('score-value');
 
 const state = {
-  unlockedLevel: LEVELS_PER_PAGE,
+  unlockedLevel: 1,
   completedLevelIds: new Set(),
   currentLevelIndex: 0,
   paths: {},
@@ -145,11 +145,11 @@ function loadProgress() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    state.unlockedLevel = Math.max(LEVELS_PER_PAGE, Math.min(LEVELS.length, parsed.unlockedLevel ?? LEVELS_PER_PAGE));
+    state.unlockedLevel = Math.max(1, Math.min(LEVELS.length, parsed.unlockedLevel ?? 1));
     state.completedLevelIds = new Set(parsed.completedLevelIds ?? []);
     state.totalScore = Math.max(0, parsed.totalScore ?? 0);
   } catch {
-    state.unlockedLevel = LEVELS_PER_PAGE;
+    state.unlockedLevel = 1;
     state.completedLevelIds = new Set();
     state.totalScore = 0;
   }
@@ -589,14 +589,8 @@ function checkSolved() {
     const wasCompleted = state.completedLevelIds.has(level.id);
     state.completedLevelIds.add(level.id);
     const unlockedBefore = state.unlockedLevel;
-    const blockStart = Math.floor((level.id - 1) / LEVELS_PER_PAGE) * LEVELS_PER_PAGE + 1;
-    const blockEnd = Math.min(LEVELS.length, blockStart + LEVELS_PER_PAGE - 1);
-    const blockCompleted = Array.from({ length: blockEnd - blockStart + 1 }, (_, i) => blockStart + i).every((id) =>
-      state.completedLevelIds.has(id)
-    );
-
-    if (blockCompleted && blockEnd < LEVELS.length) {
-      state.unlockedLevel = Math.max(state.unlockedLevel, blockEnd + LEVELS_PER_PAGE);
+    if (level.id < LEVELS.length) {
+      state.unlockedLevel = Math.max(state.unlockedLevel, level.id + 1);
     }
 
     if (!wasCompleted) {
@@ -614,7 +608,7 @@ function checkSolved() {
       statusMessage.textContent = `Tebrikler! 100 bölümün tamamını bitirdin. Toplam süren: ${formatDuration(state.levelElapsedMs)}.`;
       showToast('🎉 Tebrikler! Tüm bölümleri tamamladın.');
     } else if (state.unlockedLevel > unlockedBefore) {
-      showToast(`Yeni 10 bölüm açıldı! (${blockEnd + 1}-${Math.min(blockEnd + LEVELS_PER_PAGE, LEVELS.length)})`);
+      showToast(`Bölüm ${level.id + 1} açıldı!`);
     } else {
       showToast('Bölüm tekrar tamamlandı!');
     }
