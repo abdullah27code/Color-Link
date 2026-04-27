@@ -120,6 +120,7 @@ const statusMessage = document.getElementById('status-message');
 const completionInfo = document.getElementById('completion-info');
 const resetLevelBtn = document.getElementById('reset-level');
 const clearBoardBtn = document.getElementById('clear-board');
+const hintBtn = document.getElementById('hint-btn');
 const nextLevelBtn = document.getElementById('next-level');
 const progressFill = document.getElementById('progress-fill');
 const progressTrack = document.querySelector('.progress-track');
@@ -191,6 +192,81 @@ function clearPath(colorKey) {
     }
   }
   state.paths[colorKey] = [];
+}
+
+function buildDirectPath(start, end) {
+  const path = [[...start]];
+  let [x, y] = start;
+  const [targetX, targetY] = end;
+
+  while (x !== targetX || y !== targetY) {
+    if (x !== targetX) x += Math.sign(targetX - x);
+    else y += Math.sign(targetY - y);
+    path.push([x, y]);
+  }
+
+  return path;
+}
+
+function normalizePathDirection(path, start, end) {
+  if (!path.length) return [];
+  if (equalCell(path[0], start)) return [...path];
+  if (equalCell(path[0], end)) return [...path].reverse();
+  return [];
+}
+
+function isPrefixPath(path, fullPath) {
+  if (path.length > fullPath.length) return false;
+  return path.every((cell, idx) => equalCell(cell, fullPath[idx]));
+}
+
+function applyHint() {
+  if (state.isSolved) {
+    showToast('Bu bölüm zaten tamamlandı.');
+    return;
+  }
+
+  const level = getCurrentLevel();
+  const unresolvedColor = Object.keys(level.pairs).find((colorKey) => !isPairConnected(colorKey));
+  if (!unresolvedColor) {
+    showToast('İpucu gerekmiyor, sadece boş hücreleri doldur.');
+    return;
+  }
+
+  const pair = level.pairs[unresolvedColor];
+  const solutionPath = buildDirectPath(pair.start, pair.end);
+  const currentPath = normalizePathDirection(state.paths[unresolvedColor] || [], pair.start, pair.end);
+
+  let nextPath;
+  if (!currentPath.length || !isPrefixPath(currentPath, solutionPath)) {
+    nextPath = solutionPath.slice(0, Math.min(2, solutionPath.length));
+  } else if (currentPath.length < solutionPath.length) {
+    nextPath = solutionPath.slice(0, currentPath.length + 1);
+  } else {
+    showToast('Bu renk zaten tamamlandı.');
+    return;
+  }
+
+  clearPath(unresolvedColor);
+  nextPath.forEach((cell) => {
+    const owner = state.occupied.get(cellKey(cell));
+    if (owner && owner !== unresolvedColor) {
+      clearPath(owner);
+    }
+  });
+
+  state.paths[unresolvedColor] = nextPath;
+  nextPath.forEach((cell) => {
+    if (!isAnchorOfColor(unresolvedColor, cell)) {
+      state.occupied.set(cellKey(cell), unresolvedColor);
+    }
+  });
+
+  state.activeColorKey = null;
+  state.activePath = [];
+  checkSolved();
+  draw();
+  showToast('İpucu uygulandı.');
 }
 
 function isAnchorOfColor(colorKey, cell) {
@@ -610,6 +686,7 @@ function bindEvents() {
 
   resetLevelBtn.addEventListener('click', () => initializeLevel(state.currentLevelIndex));
   clearBoardBtn.addEventListener('click', clearBoard);
+  hintBtn.addEventListener('click', applyHint);
 
   nextLevelBtn.addEventListener('click', () => {
     const nextIndex = state.currentLevelIndex + 1;
