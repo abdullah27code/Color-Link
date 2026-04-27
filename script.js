@@ -57,16 +57,16 @@ function makeAdvancedLevel({ id, size, difficulty, segments, vertical = false })
 }
 
 const LEVELS = [
-  makeAdvancedLevel({ id: 1, size: 5, difficulty: 'Isınma', segments: [5, 5, 5, 5, 5] }),
-  makeAdvancedLevel({ id: 2, size: 5, difficulty: 'Kolay', segments: [6, 5, 5, 4, 5], vertical: true }),
-  makeAdvancedLevel({ id: 3, size: 6, difficulty: 'Kolay+', segments: [6, 6, 6, 6, 6, 6] }),
-  makeAdvancedLevel({ id: 4, size: 6, difficulty: 'Orta', segments: [8, 7, 7, 7, 7], vertical: true }),
-  makeAdvancedLevel({ id: 5, size: 7, difficulty: 'Orta+', segments: [7, 7, 7, 7, 7, 7, 7] }),
-  makeAdvancedLevel({ id: 6, size: 7, difficulty: 'Zor', segments: [10, 10, 10, 9, 10], vertical: true }),
-  makeAdvancedLevel({ id: 7, size: 8, difficulty: 'Zor+', segments: [8, 8, 8, 8, 8, 8, 8, 8] }),
-  makeAdvancedLevel({ id: 8, size: 8, difficulty: 'Uzman', segments: [13, 13, 12, 13, 13], vertical: true }),
-  makeAdvancedLevel({ id: 9, size: 9, difficulty: 'Usta', segments: [9, 9, 9, 9, 9, 9, 9, 9, 9] }),
-  makeAdvancedLevel({ id: 10, size: 9, difficulty: 'Efsane', segments: [21, 20, 20, 20], vertical: true })
+  makeAdvancedLevel({ id: 1, size: 5, difficulty: 'Isınma', segments: [4, 6, 5, 4, 6], vertical: true }),
+  makeAdvancedLevel({ id: 2, size: 5, difficulty: 'Kolay', segments: [7, 4, 6, 3, 5] }),
+  makeAdvancedLevel({ id: 3, size: 6, difficulty: 'Kolay+', segments: [5, 7, 4, 8, 6, 6], vertical: true }),
+  makeAdvancedLevel({ id: 4, size: 6, difficulty: 'Orta', segments: [9, 5, 7, 4, 6, 5] }),
+  makeAdvancedLevel({ id: 5, size: 7, difficulty: 'Orta+', segments: [8, 6, 7, 5, 9, 6, 8], vertical: true }),
+  makeAdvancedLevel({ id: 6, size: 7, difficulty: 'Zor', segments: [11, 7, 8, 6, 9, 8] }),
+  makeAdvancedLevel({ id: 7, size: 8, difficulty: 'Zor+', segments: [10, 7, 9, 8, 6, 8, 7, 9], vertical: true }),
+  makeAdvancedLevel({ id: 8, size: 8, difficulty: 'Uzman', segments: [12, 9, 8, 11, 7, 9, 8] }),
+  makeAdvancedLevel({ id: 9, size: 9, difficulty: 'Usta', segments: [11, 8, 10, 9, 7, 12, 8, 9, 7], vertical: true }),
+  makeAdvancedLevel({ id: 10, size: 9, difficulty: 'Efsane', segments: [15, 11, 10, 9, 8, 12, 16] })
 ];
 
 const canvas = document.getElementById('board');
