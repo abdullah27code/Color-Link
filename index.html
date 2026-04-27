@@ -35,6 +35,7 @@
           <button id="hint-btn" class="btn btn-secondary">İpucu Ver</button>
           <button id="reset-level" class="btn btn-secondary">Bölümü Sıfırla</button>
           <button id="clear-board" class="btn btn-tertiary">Bağlantıları Temizle</button>
+          <button id="reset-all-progress" class="btn btn-tertiary">Tüm Bölümü Sıfırla</button>
         </div>
       </header>
 
@@ -66,7 +67,10 @@
 
       <section class="status-bar card glass" aria-live="polite">
         <p id="status-message">Bir renk noktasından sürükleyerek diğerine bağlan.</p>
-        <button id="next-level" class="btn btn-primary" disabled>Sonraki Bölüm</button>
+        <div class="nav-actions">
+          <button id="prev-level" class="btn btn-secondary" disabled>Önceki Bölüm</button>
+          <button id="next-level" class="btn btn-primary" disabled>Sonraki Bölüm</button>
+        </div>
       </section>
     </main>
 

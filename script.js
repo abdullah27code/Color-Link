@@ -109,7 +109,9 @@ const statusMessage = document.getElementById('status-message');
 const completionInfo = document.getElementById('completion-info');
 const resetLevelBtn = document.getElementById('reset-level');
 const clearBoardBtn = document.getElementById('clear-board');
+const resetAllProgressBtn = document.getElementById('reset-all-progress');
 const hintBtn = document.getElementById('hint-btn');
+const prevLevelBtn = document.getElementById('prev-level');
 const nextLevelBtn = document.getElementById('next-level');
 const progressFill = document.getElementById('progress-fill');
 const progressTrack = document.querySelector('.progress-track');
@@ -346,12 +348,19 @@ function initializeLevel(levelIndex) {
   levelTitle.textContent = `Bölüm ${level.id}`;
   levelSubtitle.textContent = `${level.size}x${level.size} • ${level.difficulty}`;
   statusMessage.textContent = 'Bir renk noktasından sürükleyerek diğerine bağlan.';
-  nextLevelBtn.disabled = true;
   updateProgressUI();
   renderLevelButtons();
+  updateNavigationButtons();
   computeBoardMetrics();
   draw();
   updateHudStats();
+}
+
+function updateNavigationButtons() {
+  const prevIndex = state.currentLevelIndex - 1;
+  const nextIndex = state.currentLevelIndex + 1;
+  prevLevelBtn.disabled = prevIndex < 0;
+  nextLevelBtn.disabled = nextIndex >= LEVELS.length || LEVELS[nextIndex].id > state.unlockedLevel;
 }
 
 function renderLevelButtons() {
@@ -613,10 +622,10 @@ function checkSolved() {
       showToast('Bölüm tekrar tamamlandı!');
     }
 
-    nextLevelBtn.disabled = level.id >= LEVELS.length;
+    updateNavigationButtons();
   } else {
     state.isSolved = false;
-    nextLevelBtn.disabled = true;
+    updateNavigationButtons();
     statusMessage.textContent = 'Akışları tamamla, tüm hücreleri doldur.';
   }
 }
@@ -776,7 +785,7 @@ function clearBoard() {
   state.isSolved = false;
   state.hintMarker = null;
   statusMessage.textContent = 'Tahta temizlendi. Yeni akışları kur.';
-  nextLevelBtn.disabled = true;
+  updateNavigationButtons();
   draw();
 }
 
@@ -789,6 +798,22 @@ function bindEvents() {
   resetLevelBtn.addEventListener('click', () => initializeLevel(state.currentLevelIndex));
   clearBoardBtn.addEventListener('click', clearBoard);
   hintBtn.addEventListener('click', applyHint);
+  resetAllProgressBtn.addEventListener('click', () => {
+    const confirmed = window.confirm('Emin misin? Tüm ilerlemen silinecek.');
+    if (!confirmed) return;
+
+    localStorage.removeItem(STORAGE_KEY);
+    state.unlockedLevel = 1;
+    state.completedLevelIds = new Set();
+    state.totalScore = 0;
+    showToast('İlerleme sıfırlandı. 1. bölümden başlatıldı.');
+    initializeLevel(0);
+  });
+
+  prevLevelBtn.addEventListener('click', () => {
+    const prevIndex = state.currentLevelIndex - 1;
+    if (prevIndex >= 0) initializeLevel(prevIndex);
+  });
 
   nextLevelBtn.addEventListener('click', () => {
     const nextIndex = state.currentLevelIndex + 1;
