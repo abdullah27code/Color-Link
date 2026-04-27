@@ -136,7 +136,8 @@ const state = {
   activePath: [],
   isSolved: false,
   toastTimer: null,
-  pulse: 0
+  pulse: 0,
+  hintMarker: null
 };
 
 const getCurrentLevel = () => LEVELS[state.currentLevelIndex];
@@ -238,10 +239,13 @@ function applyHint() {
   const currentPath = normalizePathDirection(state.paths[unresolvedColor] || [], pair.start, pair.end);
 
   let nextPath;
+  let hintCell = null;
   if (!currentPath.length || !isPrefixPath(currentPath, solutionPath)) {
     nextPath = solutionPath.slice(0, Math.min(2, solutionPath.length));
+    hintCell = nextPath[nextPath.length - 1];
   } else if (currentPath.length < solutionPath.length) {
     nextPath = solutionPath.slice(0, currentPath.length + 1);
+    hintCell = nextPath[nextPath.length - 1];
   } else {
     showToast('Bu renk zaten tamamlandı.');
     return;
@@ -264,9 +268,25 @@ function applyHint() {
 
   state.activeColorKey = null;
   state.activePath = [];
+  state.hintMarker = {
+    cell: hintCell,
+    color: pair.color,
+    expiresAt: performance.now() + 1600
+  };
   checkSolved();
   draw();
-  showToast('İpucu uygulandı.');
+
+  const previousCell = nextPath[nextPath.length - 2];
+  const dx = hintCell[0] - previousCell[0];
+  const dy = hintCell[1] - previousCell[1];
+  let direction = 'ilerle';
+  if (dx === 1) direction = 'sağa ilerle';
+  else if (dx === -1) direction = 'sola ilerle';
+  else if (dy === 1) direction = 'aşağı ilerle';
+  else if (dy === -1) direction = 'yukarı ilerle';
+
+  statusMessage.textContent = `${unresolvedColor} rengi için ipucu: bir adım ${direction}.`;
+  showToast(`İpucu: ${unresolvedColor} için ${direction}`);
 }
 
 function isAnchorOfColor(colorKey, cell) {
@@ -279,6 +299,7 @@ function initializeLevel(levelIndex) {
   state.activeColorKey = null;
   state.activePath = [];
   state.isSolved = false;
+  state.hintMarker = null;
   state.paths = {};
   state.occupied = new Map();
 
@@ -619,6 +640,28 @@ function drawAnchors(level) {
   }
 }
 
+function drawHintMarker() {
+  if (!state.hintMarker) return;
+  if (performance.now() > state.hintMarker.expiresAt) {
+    state.hintMarker = null;
+    return;
+  }
+
+  const [x, y] = state.hintMarker.cell;
+  const cx = boardOffset + x * cellSize + cellSize / 2;
+  const cy = boardOffset + y * cellSize + cellSize / 2;
+  const t = performance.now() / 220;
+  const pulse = (Math.sin(t) + 1) * 0.5;
+
+  ctx.strokeStyle = state.hintMarker.color;
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = 0.55 + pulse * 0.35;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cellSize * (0.28 + pulse * 0.06), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
 function draw() {
   const level = getCurrentLevel();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -637,6 +680,7 @@ function draw() {
   }
 
   drawAnchors(level);
+  drawHintMarker();
   updateProgressUI();
 }
 
@@ -673,6 +717,7 @@ function clearBoard() {
   state.activeColorKey = null;
   state.activePath = [];
   state.isSolved = false;
+  state.hintMarker = null;
   statusMessage.textContent = 'Tahta temizlendi. Yeni akışları kur.';
   nextLevelBtn.disabled = true;
   draw();
