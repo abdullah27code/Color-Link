@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'color-link-progress-v1';
 
 const PALETTE = ['#ff6b6b', '#ffd166', '#4ecdc4', '#5f9dff', '#c084fc', '#63ff96', '#ff7f50', '#6ee7ff', '#f472b6'];
+const TOTAL_LEVELS = 100;
 
 function colorKeyFor(index) {
   return String.fromCharCode(65 + index);
@@ -56,18 +57,47 @@ function makeAdvancedLevel({ id, size, difficulty, segments, vertical = false })
   return { id, size, difficulty, pairs };
 }
 
-const LEVELS = [
-  makeAdvancedLevel({ id: 1, size: 5, difficulty: 'Isınma', segments: [4, 6, 5, 4, 6], vertical: true }),
-  makeAdvancedLevel({ id: 2, size: 5, difficulty: 'Kolay', segments: [7, 4, 6, 3, 5] }),
-  makeAdvancedLevel({ id: 3, size: 6, difficulty: 'Kolay+', segments: [5, 7, 4, 8, 6, 6], vertical: true }),
-  makeAdvancedLevel({ id: 4, size: 6, difficulty: 'Orta', segments: [9, 5, 7, 4, 6, 5] }),
-  makeAdvancedLevel({ id: 5, size: 7, difficulty: 'Orta+', segments: [8, 6, 7, 5, 9, 6, 8], vertical: true }),
-  makeAdvancedLevel({ id: 6, size: 7, difficulty: 'Zor', segments: [11, 7, 8, 6, 9, 8] }),
-  makeAdvancedLevel({ id: 7, size: 8, difficulty: 'Zor+', segments: [10, 7, 9, 8, 6, 8, 7, 9], vertical: true }),
-  makeAdvancedLevel({ id: 8, size: 8, difficulty: 'Uzman', segments: [12, 9, 8, 11, 7, 9, 8] }),
-  makeAdvancedLevel({ id: 9, size: 9, difficulty: 'Usta', segments: [11, 8, 10, 9, 7, 12, 8, 9, 7], vertical: true }),
-  makeAdvancedLevel({ id: 10, size: 9, difficulty: 'Efsane', segments: [15, 11, 10, 9, 8, 12, 16] })
-];
+function splitSegments(totalCells, segmentCount, seed) {
+  const base = Array.from({ length: segmentCount }, () => 3);
+  let remaining = totalCells - segmentCount * 3;
+  let cursor = seed;
+
+  while (remaining > 0) {
+    cursor = (cursor * 1664525 + 1013904223) % 2147483647;
+    const idx = cursor % segmentCount;
+    base[idx] += 1;
+    remaining -= 1;
+  }
+
+  return base;
+}
+
+function difficultyFor(levelId) {
+  if (levelId <= 15) return 'Isınma';
+  if (levelId <= 30) return 'Kolay';
+  if (levelId <= 45) return 'Orta';
+  if (levelId <= 65) return 'Zor';
+  if (levelId <= 85) return 'Uzman';
+  return 'Efsane';
+}
+
+const LEVELS = Array.from({ length: TOTAL_LEVELS }, (_, i) => {
+  const id = i + 1;
+  const size = 5 + (i % 5); // 5..9
+  const totalCells = size * size;
+  const difficultyFactor = Math.floor(i / 20);
+  const segmentCount = Math.max(4, Math.min(9, size + 1 - difficultyFactor));
+  const segments = splitSegments(totalCells, segmentCount, id * 97);
+  const vertical = i % 2 === 0;
+
+  return makeAdvancedLevel({
+    id,
+    size,
+    difficulty: difficultyFor(id),
+    segments,
+    vertical
+  });
+});
 
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
@@ -83,6 +113,8 @@ const nextLevelBtn = document.getElementById('next-level');
 const progressFill = document.getElementById('progress-fill');
 const progressTrack = document.querySelector('.progress-track');
 const toast = document.getElementById('toast');
+const timerValue = document.getElementById('timer-value');
+const scoreValue = document.getElementById('score-value');
 
 const state = {
   unlockedLevel: 1,
@@ -95,7 +127,10 @@ const state = {
   isSolved: false,
   toastTimer: null,
   pulse: 0,
-  hintMarker: null
+  hintMarker: null,
+  levelStartedAt: 0,
+  levelElapsedMs: 0,
+  totalScore: 0
 };
 
 const getCurrentLevel = () => LEVELS[state.currentLevelIndex];
@@ -111,9 +146,11 @@ function loadProgress() {
     const parsed = JSON.parse(raw);
     state.unlockedLevel = Math.max(1, Math.min(LEVELS.length, parsed.unlockedLevel ?? 1));
     state.completedLevelIds = new Set(parsed.completedLevelIds ?? []);
+    state.totalScore = Math.max(0, parsed.totalScore ?? 0);
   } catch {
     state.unlockedLevel = 1;
     state.completedLevelIds = new Set();
+    state.totalScore = 0;
   }
 }
 
@@ -122,7 +159,8 @@ function saveProgress() {
     STORAGE_KEY,
     JSON.stringify({
       unlockedLevel: state.unlockedLevel,
-      completedLevelIds: [...state.completedLevelIds]
+      completedLevelIds: [...state.completedLevelIds],
+      totalScore: state.totalScore
     })
   );
 }
@@ -136,6 +174,13 @@ function showToast(message) {
 
 function cellKey([x, y]) {
   return `${x},${y}`;
+}
+
+function formatDuration(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
 }
 
 function equalCell(a, b) {
@@ -285,6 +330,8 @@ function initializeLevel(levelIndex) {
   state.activePath = [];
   state.isSolved = false;
   state.hintMarker = null;
+  state.levelStartedAt = performance.now();
+  state.levelElapsedMs = 0;
   state.paths = {};
   state.occupied = new Map();
 
@@ -303,6 +350,7 @@ function initializeLevel(levelIndex) {
   renderLevelButtons();
   computeBoardMetrics();
   draw();
+  updateHudStats();
 }
 
 function renderLevelButtons() {
@@ -531,18 +579,30 @@ function checkSolved() {
 
   if (everyPairConnected && allCellsFilled()) {
     state.isSolved = true;
+    state.levelElapsedMs = performance.now() - state.levelStartedAt;
     statusMessage.textContent = 'Harika! Bölüm temiz şekilde çözüldü.';
+    const wasCompleted = state.completedLevelIds.has(level.id);
     state.completedLevelIds.add(level.id);
     const unlockedBefore = state.unlockedLevel;
     if (level.id < LEVELS.length) {
       state.unlockedLevel = Math.max(state.unlockedLevel, level.id + 1);
     }
 
+    if (!wasCompleted) {
+      const timePenalty = Math.floor(state.levelElapsedMs / 1000) * 6;
+      const levelBase = level.size * 260;
+      const bonus = Math.max(120, levelBase - timePenalty);
+      state.totalScore += bonus;
+    }
+
     saveProgress();
     updateProgressUI();
     renderLevelButtons();
 
-    if (state.unlockedLevel > unlockedBefore) {
+    if (level.id === LEVELS.length) {
+      statusMessage.textContent = `Tebrikler! 100 bölümün tamamını bitirdin. Toplam süren: ${formatDuration(state.levelElapsedMs)}.`;
+      showToast('🎉 Tebrikler! Tüm bölümleri tamamladın.');
+    } else if (state.unlockedLevel > unlockedBefore) {
       showToast(`Bölüm ${level.id + 1} açıldı!`);
     } else {
       showToast('Bölüm tekrar tamamlandı!');
@@ -561,6 +621,12 @@ function updateProgressUI() {
   const fill = Math.round((state.occupied.size / (level.size * level.size)) * 100);
   progressFill.style.width = `${fill}%`;
   progressTrack.setAttribute('aria-valuenow', String(fill));
+}
+
+function updateHudStats() {
+  const elapsed = state.isSolved ? state.levelElapsedMs : performance.now() - state.levelStartedAt;
+  timerValue.textContent = formatDuration(Math.max(0, elapsed));
+  scoreValue.textContent = String(state.totalScore);
 }
 
 function drawGrid(level) {
@@ -667,6 +733,7 @@ function draw() {
   drawAnchors(level);
   drawHintMarker();
   updateProgressUI();
+  updateHudStats();
 }
 
 function handlePointerDown(event) {
