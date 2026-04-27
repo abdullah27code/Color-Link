@@ -323,8 +323,16 @@ function extendPathStep(cell) {
 
   const path = state.activePath;
   const last = path[path.length - 1];
+  const level = getCurrentLevel();
+  const pair = level.pairs[colorKey];
+
   if (equalCell(last, cell)) return true;
   if (!adjacent(last, cell)) return false;
+
+  // Bir uç noktaya ulaştıktan sonra ileri doğru devam etmeyi engelle.
+  if (path.length > 1 && isAnchorOfColor(colorKey, last) && !equalCell(path[path.length - 2], cell)) {
+    return false;
+  }
 
   if (path.length > 1 && equalCell(path[path.length - 2], cell)) {
     const removed = path.pop();
@@ -336,6 +344,17 @@ function extendPathStep(cell) {
 
   const owner = state.occupied.get(cellKey(cell));
   if (owner && owner !== colorKey) return false;
+
+  const isAnchorCell = isAnchorOfColor(colorKey, cell);
+  if (isAnchorCell) {
+    const anchorVisitedBefore = path.some((point, idx) => idx < path.length - 1 && equalCell(point, cell));
+    if (anchorVisitedBefore) return false;
+
+    const startAnchor = path[0];
+    const oppositeAnchor = equalCell(startAnchor, pair.start) ? pair.end : pair.start;
+    const isOppositeAnchor = equalCell(cell, oppositeAnchor);
+    if (path.length > 1 && !isOppositeAnchor) return false;
+  }
 
   if (owner === colorKey && !isAnchorOfColor(colorKey, cell)) {
     const index = path.findIndex((point) => equalCell(point, cell));
